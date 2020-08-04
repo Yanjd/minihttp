@@ -540,3 +540,66 @@ bool http_connection::write()
         }
     }
 }
+
+void http_connection::initmysql_result(connection_pool *connPool)
+{
+    MYSQL *mysql =NULL;
+    connRAII mysqlconn(&mysql,connPool);
+    
+    if(mysql_query(mysql,"SELECT username, password FROM user"))
+    {
+        LOG_ERROR("SELECT error:%s\n",mysql_error(mysql));
+    }
+
+    MYSQL_RES* res=mysql_store_result(mysql);
+
+    int num_fields=mysql_num_fields(res);
+
+    MYSQL_FIELD* fields=mysql_fetch_fields(res);
+
+    while(MYSQL_ROW row=mysql_fetch_row(res))
+    {
+        string tmp1(row[0]);
+        string tmp2(row[1]);
+        users[tmp1]=tmp2;
+    }
+}
+HTTP_CODE http_connection::parse_content(char* text)
+{
+    if(m_read_index>=(m_content_length+m_checked_index))
+    {
+        text[m_content_length]='\0';
+
+        m_string=text;
+        return GET_REQUEST;
+    }
+    return NO_REQUEST;
+}
+
+void http_connection::get_user_info()
+{
+    char flag=m_url[1];
+    char* m_url_real=(char*)malloc(sizeof(char)*200);
+    strcpy(m_url_real,"/");
+    strcat(m_url_real,m_url+2);
+
+    //len需要改
+    strncpy(m_real_file+len,m_url_real,FILENAME_LEN-len-1);
+    free(m_url_real);
+
+    char name[100],password[100];
+    int i;
+    for(i=5;m_string[i]!='&';++i)
+    {
+        name[i-5]=m_string[i];
+    }
+    name[i-5]='\0';
+
+    int j=0;
+    for(i=i+10;m_string[i]!='\0';++i,++j)
+    {
+        password[j]=m_string[i];
+    }
+    password[j]='\0';
+}
+
